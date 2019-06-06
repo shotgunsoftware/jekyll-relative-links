@@ -11,7 +11,8 @@ module JekyllRelativeLinks
     FRAGMENT_REGEX = %r!(#.+?)?!.freeze
     INLINE_LINK_REGEX = %r!\[#{LINK_TEXT_REGEX}\]\(([^\)]+?)#{FRAGMENT_REGEX}\)!.freeze
     REFERENCE_LINK_REGEX = %r!^\s*?\[#{LINK_TEXT_REGEX}\]: (.+?)#{FRAGMENT_REGEX}\s*?$!.freeze
-    LINK_REGEX = %r!(#{INLINE_LINK_REGEX}|#{REFERENCE_LINK_REGEX})!.freeze
+    SRC_LINK_REGEX = %r! src="#{LINK_TEXT_REGEX}"!.freeze
+    LINK_REGEX = %r!(#{INLINE_LINK_REGEX}|#{REFERENCE_LINK_REGEX}|#{SRC_LINK_REGEX})!.freeze
     CONVERTER_CLASS = Jekyll::Converters::Markdown
     CONFIG_KEY = "relative_links"
     ENABLED_KEY = "enabled"
@@ -64,10 +65,32 @@ module JekyllRelativeLinks
     private
 
     def link_parts(matches)
-      link_type     = matches[2] ? :inline : :reference
-      link_text     = matches[link_type == :inline ? 2 : 5]
-      relative_path = matches[link_type == :inline ? 3 : 6]
-      fragment      = matches[link_type == :inline ? 4 : 7]
+      if matches[2]
+        # if group 2 is populated, it's an inline link, in the form of
+        # ![Some Text](relative/path.md#fragment)
+        link_type = :inline
+        link_text     = matches[2]
+        relative_path = matches[3]
+        fragment      = matches[4]
+      elsif matches[8]
+        link_type = :src
+        # We want to introduce a new "link" that should also be localized.
+        # Instead of an anchor, however, this is an image source, and therefore
+        # won't have text or a fragment.
+        # If it's a src link, group 8 will be populated.  These look like:
+        #  src="relative/path.png"
+        link_text     = ""
+        relative_path = matches[8]
+        fragment      = ""
+      else
+        # If groups 2 and 8 were not populated, it's a reference link
+        # This will look like the following, and must be on its own line
+        # [Some Text]: relative/path.md#fragment
+        link_type = :reference
+        link_text     = matches[5]
+        relative_path = matches[6]
+        fragment      = matches[7]
+      end
       [link_type, link_text, relative_path, fragment]
     end
 
@@ -103,6 +126,8 @@ module JekyllRelativeLinks
 
       if type == :inline
         "[#{text}](#{url})"
+      elsif type == :src
+        " src=\"#{url}\""
       else
         "\n[#{text}]: #{url}"
       end
