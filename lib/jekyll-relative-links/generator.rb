@@ -66,7 +66,8 @@ module JekyllRelativeLinks
 
     def link_parts(matches)
       if matches[2]
-        # if group 2 is populated, it's an inline link.
+        # if group 2 is populated, it's an inline link, in the form of
+        # ![Some Text](relative/path.md#fragment)
         link_type = :inline
         link_text     = matches[2]
         relative_path = matches[3]
@@ -76,12 +77,15 @@ module JekyllRelativeLinks
         # We want to introduce a new "link" that should also be localized.
         # Instead of an anchor, however, this is an image source, and therefore
         # won't have text or a fragment.
-        # If it's a src link, group 8 will be populated
+        # If it's a src link, group 8 will be populated.  These look like:
+        #  src="relative/path.png"
         link_text     = ""
         relative_path = matches[8]
         fragment      = ""
       else
-        # If groups 2 and 8 were not populated, it's a reference link.
+        # If groups 2 and 8 were not populated, it's a reference link
+        # This will look like the following, and must be on its own line
+        # [Some Text]: relative/path.md#fragment
         link_type = :reference
         link_text     = matches[5]
         relative_path = matches[6]
